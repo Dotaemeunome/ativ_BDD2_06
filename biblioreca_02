@@ -1,0 +1,477 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+
+namespace Biblioteca
+{
+    public class Emprestimo
+    {
+        public DateTime DtEmprestimo { get; private set; }
+        public DateTime DtDevolucao { get; private set; }
+
+        public Emprestimo()
+        {
+            DtEmprestimo = DateTime.Now;
+            DtDevolucao = DateTime.MinValue;
+        }
+
+        public bool Devolvido
+        {
+            get { return DtDevolucao != DateTime.MinValue; }
+        }
+
+        public void RegistrarDevolucao()
+        {
+            if (!Devolvido)
+                DtDevolucao = DateTime.Now;
+        }
+
+        public override string ToString()
+        {
+            string devolucao = Devolvido
+                ? DtDevolucao.ToString("dd/MM/yyyy HH:mm")
+                : "Em aberto";
+
+            return "Empréstimo: " + DtEmprestimo.ToString("dd/MM/yyyy HH:mm") +
+                   " | Devolução: " + devolucao;
+        }
+    }
+
+    public class Exemplar
+    {
+        private int tombo;
+        private List<Emprestimo> emprestimos;
+
+        public int Tombo
+        {
+            get { return tombo; }
+            set { tombo = value; }
+        }
+
+        public List<Emprestimo> Emprestimos
+        {
+            get { return emprestimos; }
+        }
+
+        public Exemplar(int tombo)
+        {
+            this.tombo = tombo;
+            emprestimos = new List<Emprestimo>();
+        }
+
+        public bool emprestar()
+        {
+            if (!disponivel())
+                return false;
+
+            emprestimos.Add(new Emprestimo());
+            return true;
+        }
+
+        public bool devolver()
+        {
+            Emprestimo emprestimoAberto = emprestimos
+                .LastOrDefault(e => !e.Devolvido);
+
+            if (emprestimoAberto == null)
+                return false;
+
+            emprestimoAberto.RegistrarDevolucao();
+            return true;
+        }
+
+        public bool disponivel()
+        {
+            return !emprestimos.Any(e => !e.Devolvido);
+        }
+
+        public int qtdeEmprestimos()
+        {
+            return emprestimos.Count;
+        }
+    }
+
+    public class Livro
+    {
+        private int isbn;
+        private string titulo;
+        private string autor;
+        private string editora;
+        private List<Exemplar> exemplares;
+
+        public int Isbn
+        {
+            get { return isbn; }
+            set { isbn = value; }
+        }
+
+        public string Titulo
+        {
+            get { return titulo; }
+            set { titulo = value; }
+        }
+
+        public string Autor
+        {
+            get { return autor; }
+            set { autor = value; }
+        }
+
+        public string Editora
+        {
+            get { return editora; }
+            set { editora = value; }
+        }
+
+        public List<Exemplar> Exemplares
+        {
+            get { return exemplares; }
+        }
+
+        public Livro(int isbn, string titulo, string autor, string editora)
+        {
+            this.isbn = isbn;
+            this.titulo = titulo;
+            this.autor = autor;
+            this.editora = editora;
+            exemplares = new List<Exemplar>();
+        }
+
+        public void adicionarExemplar(Exemplar exemplar)
+        {
+            if (exemplar == null)
+                return;
+
+            if (!exemplares.Any(e => e.Tombo == exemplar.Tombo))
+                exemplares.Add(exemplar);
+        }
+
+        public int qtdeExemplares()
+        {
+            return exemplares.Count;
+        }
+
+        public int qtdeDisponiveis()
+        {
+            return exemplares.Count(e => e.disponivel());
+        }
+
+        public int qtdeEmprestimos()
+        {
+            return exemplares.Sum(e => e.qtdeEmprestimos());
+        }
+
+        public double percDisponibilidade()
+        {
+            if (qtdeExemplares() == 0)
+                return 0;
+
+            return (double)qtdeDisponiveis() / qtdeExemplares() * 100;
+        }
+    }
+
+    public class Livros
+    {
+        private List<Livro> acervo;
+
+        public IReadOnlyList<Livro> Acervo
+        {
+            get { return acervo.AsReadOnly(); }
+        }
+
+        public Livros()
+        {
+            acervo = new List<Livro>();
+        }
+
+        public void adicionar(Livro livro)
+        {
+            if (livro == null)
+                return;
+
+            if (pesquisar(livro) == null)
+                acervo.Add(livro);
+        }
+
+        public Livro pesquisar(Livro livro)
+        {
+            if (livro == null)
+                return null;
+
+            return acervo.FirstOrDefault(l => l.Isbn == livro.Isbn);
+        }
+    }
+
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            Livros biblioteca = new Livros();
+            int opcao;
+
+            do
+            {
+                ExibirMenu();
+                opcao = LerInteiro("Escolha uma opção: ");
+                Console.WriteLine();
+
+                switch (opcao)
+                {
+                    case 0:
+                        Console.WriteLine("Saindo do sistema...");
+                        break;
+                    case 1:
+                        AdicionarLivro(biblioteca);
+                        break;
+                    case 2:
+                        PesquisarSintetico(biblioteca);
+                        break;
+                    case 3:
+                        PesquisarAnalitico(biblioteca);
+                        break;
+                    case 4:
+                        AdicionarExemplar(biblioteca);
+                        break;
+                    case 5:
+                        RegistrarEmprestimo(biblioteca);
+                        break;
+                    case 6:
+                        RegistrarDevolucao(biblioteca);
+                        break;
+                    default:
+                        Console.WriteLine("Opção inválida!");
+                        break;
+                }
+
+                if (opcao != 0)
+                {
+                    Console.WriteLine("\nPressione ENTER para continuar...");
+                    Console.ReadLine();
+                }
+            } while (opcao != 0);
+        }
+
+        private static void ExibirMenu()
+        {
+            Console.Clear();
+            Console.WriteLine("==================== BIBLIOTECA ====================");
+            Console.WriteLine("0. Sair");
+            Console.WriteLine("1. Adicionar livro");
+            Console.WriteLine("2. Pesquisar livro (sintético)");
+            Console.WriteLine("3. Pesquisar livro (analítico)");
+            Console.WriteLine("4. Adicionar exemplar");
+            Console.WriteLine("5. Registrar empréstimo");
+            Console.WriteLine("6. Registrar devolução");
+            Console.WriteLine("=====================================================");
+        }
+
+        private static void AdicionarLivro(Livros biblioteca)
+        {
+            int isbn = LerInteiro("ISBN: ");
+            if (biblioteca.pesquisar(new Livro(isbn, "", "", "")) != null)
+            {
+                Console.WriteLine("Já existe um livro cadastrado com esse ISBN.");
+                return;
+            }
+
+            string titulo = LerTexto("Título: ");
+            string autor = LerTexto("Autor: ");
+            string editora = LerTexto("Editora: ");
+            int quantidade = LerInteiroNaoNegativo("Quantidade inicial de exemplares: ");
+
+            Livro livro = new Livro(isbn, titulo, autor, editora);
+            for (int i = 0; i < quantidade; i++)
+            {
+                int tombo = LerInteiro("Tombo do exemplar " + (i + 1) + ": ");
+                if (livro.Exemplares.Any(e => e.Tombo == tombo))
+                {
+                    Console.WriteLine("Tombo repetido. Exemplar não adicionado.");
+                    i--;
+                    continue;
+                }
+
+                livro.adicionarExemplar(new Exemplar(tombo));
+            }
+
+            biblioteca.adicionar(livro);
+            Console.WriteLine("Livro adicionado com sucesso!");
+        }
+
+        private static void PesquisarSintetico(Livros biblioteca)
+        {
+            Livro livro = LocalizarLivro(biblioteca);
+            if (livro == null)
+                return;
+
+            Console.WriteLine("================ DADOS DO LIVRO ================");
+            Console.WriteLine("ISBN: " + livro.Isbn);
+            Console.WriteLine("Título: " + livro.Titulo);
+            Console.WriteLine("Autor: " + livro.Autor);
+            Console.WriteLine("Editora: " + livro.Editora);
+            Console.WriteLine("Total de exemplares: " + livro.qtdeExemplares());
+            Console.WriteLine("Exemplares disponíveis: " + livro.qtdeDisponiveis());
+            Console.WriteLine("Quantidade de empréstimos: " + livro.qtdeEmprestimos());
+            Console.WriteLine("Percentual de disponibilidade: " + livro.percDisponibilidade().ToString("F2", CultureInfo.CurrentCulture) + "%");
+        }
+
+        private static void PesquisarAnalitico(Livros biblioteca)
+        {
+            Livro livro = LocalizarLivro(biblioteca);
+            if (livro == null)
+                return;
+
+            PesquisarSinteticoSemNovaBusca(livro);
+            Console.WriteLine("\n================ EXEMPLARES ================");
+
+            if (livro.Exemplares.Count == 0)
+            {
+                Console.WriteLine("Nenhum exemplar cadastrado.");
+                return;
+            }
+
+            foreach (Exemplar exemplar in livro.Exemplares)
+            {
+                Console.WriteLine("Tombo: " + exemplar.Tombo);
+                Console.WriteLine("Situação: " + (exemplar.disponivel() ? "Disponível" : "Emprestado"));
+                Console.WriteLine("Quantidade de empréstimos: " + exemplar.qtdeEmprestimos());
+
+                if (exemplar.Emprestimos.Count == 0)
+                {
+                    Console.WriteLine("  Nenhum empréstimo registrado.");
+                }
+                else
+                {
+                    foreach (Emprestimo emprestimo in exemplar.Emprestimos)
+                        Console.WriteLine("  - " + emprestimo);
+                }
+
+                Console.WriteLine("---------------------------------------------");
+            }
+        }
+
+        private static void PesquisarSinteticoSemNovaBusca(Livro livro)
+        {
+            Console.WriteLine("================ DADOS DO LIVRO ================");
+            Console.WriteLine("ISBN: " + livro.Isbn);
+            Console.WriteLine("Título: " + livro.Titulo);
+            Console.WriteLine("Autor: " + livro.Autor);
+            Console.WriteLine("Editora: " + livro.Editora);
+            Console.WriteLine("Total de exemplares: " + livro.qtdeExemplares());
+            Console.WriteLine("Exemplares disponíveis: " + livro.qtdeDisponiveis());
+            Console.WriteLine("Quantidade de empréstimos: " + livro.qtdeEmprestimos());
+            Console.WriteLine("Percentual de disponibilidade: " + livro.percDisponibilidade().ToString("F2", CultureInfo.CurrentCulture) + "%");
+        }
+
+        private static void AdicionarExemplar(Livros biblioteca)
+        {
+            Livro livro = LocalizarLivro(biblioteca);
+            if (livro == null)
+                return;
+
+            int tombo = LerInteiro("Tombo do novo exemplar: ");
+            if (livro.Exemplares.Any(e => e.Tombo == tombo))
+            {
+                Console.WriteLine("Já existe um exemplar com esse tombo neste livro.");
+                return;
+            }
+
+            livro.adicionarExemplar(new Exemplar(tombo));
+            Console.WriteLine("Exemplar adicionado com sucesso!");
+        }
+
+        private static void RegistrarEmprestimo(Livros biblioteca)
+        {
+            Livro livro = LocalizarLivro(biblioteca);
+            if (livro == null)
+                return;
+
+            Exemplar exemplar = LocalizarExemplar(livro);
+            if (exemplar == null)
+                return;
+
+            if (exemplar.emprestar())
+                Console.WriteLine("Empréstimo registrado com sucesso!");
+            else
+                Console.WriteLine("Este exemplar não está disponível para empréstimo.");
+        }
+
+        private static void RegistrarDevolucao(Livros biblioteca)
+        {
+            Livro livro = LocalizarLivro(biblioteca);
+            if (livro == null)
+                return;
+
+            Exemplar exemplar = LocalizarExemplar(livro);
+            if (exemplar == null)
+                return;
+
+            if (exemplar.devolver())
+                Console.WriteLine("Devolução registrada com sucesso!");
+            else
+                Console.WriteLine("Este exemplar não possui empréstimo em aberto.");
+        }
+
+        private static Livro LocalizarLivro(Livros biblioteca)
+        {
+            int isbn = LerInteiro("ISBN do livro: ");
+            Livro livro = biblioteca.pesquisar(new Livro(isbn, "", "", ""));
+
+            if (livro == null)
+                Console.WriteLine("Livro não encontrado.");
+
+            return livro;
+        }
+
+        private static Exemplar LocalizarExemplar(Livro livro)
+        {
+            int tombo = LerInteiro("Tombo do exemplar: ");
+            Exemplar exemplar = livro.Exemplares.FirstOrDefault(e => e.Tombo == tombo);
+
+            if (exemplar == null)
+                Console.WriteLine("Exemplar não encontrado neste livro.");
+
+            return exemplar;
+        }
+
+        private static int LerInteiro(string mensagem)
+        {
+            int valor;
+            while (true)
+            {
+                Console.Write(mensagem);
+                if (int.TryParse(Console.ReadLine(), out valor))
+                    return valor;
+
+                Console.WriteLine("Digite um número inteiro válido.");
+            }
+        }
+
+        private static int LerInteiroNaoNegativo(string mensagem)
+        {
+            int valor;
+            do
+            {
+                valor = LerInteiro(mensagem);
+                if (valor < 0)
+                    Console.WriteLine("O valor não pode ser negativo.");
+            } while (valor < 0);
+
+            return valor;
+        }
+
+        private static string LerTexto(string mensagem)
+        {
+            while (true)
+            {
+                Console.Write(mensagem);
+                string texto = Console.ReadLine();
+                if (!string.IsNullOrWhiteSpace(texto))
+                    return texto.Trim();
+
+                Console.WriteLine("Este campo não pode ficar vazio.");
+            }
+        }
+    }
+}
